@@ -15,7 +15,7 @@ TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
 # NOTA: Los IDs SIEMPRE deben ir entre comillas y dentro de corchetes [ ].
 CLIENTES_MAPA = {
     'spotlfypremium.online': ['6953415010', '7707049896'], # Dominio principal: le llega a TI y a tu SOCIO
-    'cliente1.spotlfypremium.online': ['7707049896'],      # Subdominio 1: le llega solo a tu socio
+    'free.spotlfypremium.online': ['1087968824'],      # Subdominio 1: le llega solo a tu socio
     'promo.spotlfypremium.online': ['123456789'],         # Subdominio 2: le llega a un grupo
     'juan.spotlfypremium.online': ['987654321'],          # Subdominio 3: le llega a otro cliente
 }
