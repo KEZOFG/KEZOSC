@@ -12,7 +12,7 @@ TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
 
 # --- DIVISIÓN DE DESTINATARIOS (SEGÚN TU PEDIDO) ---
 # El bot usará estas listas para validar y clasificar
-CLIENTES_PRIVADOS = ['6953415010', '7707049896'] 
+CLIENTES_PRIVADOS = ['8886805386', '7707049896'] 
 GRUPOS_DESTINO = ['-1087968824', '1087968824']
 
 # La lista maestra es la unión de ambos para la validación de seguridad
