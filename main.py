@@ -13,7 +13,7 @@ TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
 # --- TU LISTA MAESTRA ---
 # Aquí pones los IDs de tus clientes y grupos
 LISTA_MAESTRA_IDS = [
-    '6953415010', '7707049896', 
+    '6953415010', '8886805386', 
     '-1087968824', '1087968824'
 ]
 
