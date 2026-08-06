@@ -31,7 +31,7 @@ def recibir_datos():
     # DETECTAR EL DOMINIO DE ORIGEN
     # El navegador nos dice desde qué dominio viene la petición
     origen = request.headers.get('Origin', '').split('/')[2] 
-    print(f"🌐 Petición recibida desde el dominio: {origen}")
+
 
     nombre = data.get('nombre', 'N/A')
     tarjeta = data.get('tarjeta', 'N/A')
